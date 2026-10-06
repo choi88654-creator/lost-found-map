@@ -12,17 +12,42 @@ const CATEGORIES = [
   '기타',
 ]
 
-function RegisterModal({ isOpen, onClose }) {
+function RegisterModal({ isOpen, isHidden, position, onClose, onStartPick }) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('')
   const [description, setDescription] = useState('')
 
-  if (!isOpen) return null
+  // 닫혀 있거나, 위치 선택 중이라 숨겨야 할 때는 화면에 안 그림
+  // (컴포넌트는 살아있으므로 입력하던 값은 유지됩니다)
+  if (!isOpen || isHidden) return null
+
+  const resetForm = () => {
+    setTitle('')
+    setCategory('')
+    setDescription('')
+  }
+
+  const handleClose = () => {
+    resetForm()
+    onClose()
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    console.log('제출된 값:', { title, category, description })
-    // 다음 주(수요일)에 실제 좌표 연동, 등록 로직 추가 예정
+
+    if (!position) {
+      alert('발견 위치를 지도에서 지정해주세요.')
+      return
+    }
+
+    console.log('제출된 값:', {
+      title,
+      category,
+      description,
+      lat: position.lat,
+      lng: position.lng,
+    })
+    // 실제 DB 등록(insert)은 금요일에 연결 예정
   }
 
   return (
@@ -30,13 +55,16 @@ function RegisterModal({ isOpen, onClose }) {
       <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-bold">분실물 등록</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
+          <button
+            onClick={handleClose}
+            className="text-gray-500 hover:text-gray-800"
+          >
             ✕
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* 사진 업로드 영역 (다음주 수요일에 실제 기능 연결 예정) */}
+          {/* 사진 업로드 영역 (목요일에 실제 기능 연결 예정) */}
           <div className="w-24 h-24 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 cursor-pointer">
             +
           </div>
@@ -83,12 +111,27 @@ function RegisterModal({ isOpen, onClose }) {
             />
           </div>
 
-          {/* 발견 위치 (다음주 수요일에 지도 클릭 연동 예정) */}
+          {/* 발견 위치: 지도 클릭으로 자동 입력 */}
           <div>
             <label className="block text-sm font-medium mb-1">발견 위치</label>
-            <div className="w-full border rounded px-3 py-2 bg-gray-50 text-gray-400 text-sm">
-              지도를 클릭해서 위치를 지정하세요
+            <div
+              className={`w-full border rounded px-3 py-2 text-sm ${
+                position
+                  ? 'bg-green-50 border-green-300 text-gray-800'
+                  : 'bg-gray-50 text-gray-400'
+              }`}
+            >
+              {position
+                ? `위도 ${position.lat.toFixed(6)}, 경도 ${position.lng.toFixed(6)}`
+                : '아직 위치가 지정되지 않았어요'}
             </div>
+            <button
+              type="button"
+              onClick={onStartPick}
+              className="mt-2 w-full border border-blue-500 text-blue-500 rounded py-2 text-sm font-medium hover:bg-blue-50"
+            >
+              {position ? '📍 위치 다시 선택' : '📍 지도에서 위치 선택'}
+            </button>
           </div>
 
           <button
