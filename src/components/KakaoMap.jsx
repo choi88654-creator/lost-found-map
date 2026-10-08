@@ -1,24 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 
-function KakaoMap({ isPicking, pickedPosition, onPick }) {
+function KakaoMap({ onMapClick, selectedLocation }) {
   const mapRef = useRef(null)
   const [map, setMap] = useState(null)
+  const onMapClickRef = useRef(onMapClick)
+  const selectedOverlayRef = useRef(null)
 
-  // 클릭 이벤트 안에서 "최신 값"을 읽기 위한 ref
-  const isPickingRef = useRef(isPicking)
-  const onPickRef = useRef(onPick)
-  const pickedMarkerRef = useRef(null)
-
+  // 최신 클릭 핸들러를 항상 ref에 보관
   useEffect(() => {
-    isPickingRef.current = isPicking
-  }, [isPicking])
+    onMapClickRef.current = onMapClick
+  }, [onMapClick])
 
-  useEffect(() => {
-    onPickRef.current = onPick
-  }, [onPick])
-
-  // 1. 지도 초기화 + 클릭 이벤트
+  // 1. 지도 초기화
   useEffect(() => {
     if (!window.kakao || !window.kakao.maps) {
       console.error('카카오맵 SDK를 불러오지 못했습니다.')
@@ -27,7 +21,7 @@ function KakaoMap({ isPicking, pickedPosition, onPick }) {
 
     window.kakao.maps.load(() => {
       const options = {
-        center: new window.kakao.maps.LatLng(37.5665, 126.9780),
+        center: new window.kakao.maps.LatLng(37.5665, 126.978),
         level: 4,
       }
       const kakaoMap = new window.kakao.maps.Map(mapRef.current, options)
@@ -35,19 +29,14 @@ function KakaoMap({ isPicking, pickedPosition, onPick }) {
 
       window.kakao.maps.event.addListener(kakaoMap, 'click', (mouseEvent) => {
         const latlng = mouseEvent.latLng
-        const lat = latlng.getLat()
-        const lng = latlng.getLng()
-        console.log('클릭한 위치 - lat:', lat, 'lng:', lng)
-
-        // 위치 선택 모드일 때만 부모(App)에게 좌표 전달
-        if (isPickingRef.current) {
-          onPickRef.current(lat, lng)
-        }
+        const loc = { lat: latlng.getLat(), lng: latlng.getLng() }
+        console.log('클릭한 위치 - lat:', loc.lat, 'lng:', loc.lng)
+        if (onMapClickRef.current) onMapClickRef.current(loc)
       })
     })
   }, [])
 
-  // 2. 지도가 준비되면 DB에서 데이터 불러와 마커 표시
+  // 2. DB 데이터로 마커 표시
   useEffect(() => {
     if (!map) return
 
@@ -73,41 +62,36 @@ function KakaoMap({ isPicking, pickedPosition, onPick }) {
     loadMarkers()
   }, [map])
 
-  // 3. 위치 선택 모드일 때 커서를 십자 모양으로
-  useEffect(() => {
-    if (!map) return
-    map.setCursor(isPicking ? 'crosshair' : '')
-  }, [map, isPicking])
-
-  // 4. 선택한 위치에 임시 마커(별 모양) 표시
+  // 3. 선택한 위치에 파란 점 표시
   useEffect(() => {
     if (!map) return
 
-    // 이전에 찍은 임시 마커가 있으면 제거
-    if (pickedMarkerRef.current) {
-      pickedMarkerRef.current.setMap(null)
-      pickedMarkerRef.current = null
+    if (!selectedLocation) {
+      if (selectedOverlayRef.current) {
+        selectedOverlayRef.current.setMap(null)
+        selectedOverlayRef.current = null
+      }
+      return
     }
 
-    // 선택된 위치가 없으면(초기화 상태) 여기서 끝
-    if (!pickedPosition) return
-
-    const imageSrc =
-      'https://t1.daumcdn.net/localimg/localimages/07/mapapidoc/markerStar.png'
-    const markerImage = new window.kakao.maps.MarkerImage(
-      imageSrc,
-      new window.kakao.maps.Size(24, 35)
+    const position = new window.kakao.maps.LatLng(
+      selectedLocation.lat,
+      selectedLocation.lng
     )
 
-    pickedMarkerRef.current = new window.kakao.maps.Marker({
-      position: new window.kakao.maps.LatLng(
-        pickedPosition.lat,
-        pickedPosition.lng
-      ),
-      map: map,
-      image: markerImage,
-    })
-  }, [map, pickedPosition])
+    if (!selectedOverlayRef.current) {
+      selectedOverlayRef.current = new window.kakao.maps.CustomOverlay({
+        position,
+        xAnchor: 0.5,
+        yAnchor: 0.5,
+        content:
+          '<div style="width:18px;height:18px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 6px rgba(0,0,0,0.5);"></div>',
+      })
+    } else {
+      selectedOverlayRef.current.setPosition(position)
+    }
+    selectedOverlayRef.current.setMap(map)
+  }, [map, selectedLocation])
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
 }
