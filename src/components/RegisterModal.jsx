@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import { uploadItemImage } from '../lib/uploadImage'
+import { createItem } from '../lib/itemsApi'
 
 const CATEGORIES = [
   '지갑/카드',
@@ -13,13 +14,22 @@ const CATEGORIES = [
   '기타',
 ]
 
-function RegisterModal({ isOpen, isHidden, position, onClose, onStartPick }) {
+function RegisterModal({
+  isOpen,
+  isHidden,
+  position,
+  onClose,
+  onStartPick,
+  onCreated,
+}) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('')
   const [description, setDescription] = useState('')
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
-  const [uploading, setUploading] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [errors, setErrors] = useState({})
+  const [submitError, setSubmitError] = useState('')
   const fileInputRef = useRef(null)
 
   if (!isOpen || isHidden) return null
@@ -30,9 +40,13 @@ function RegisterModal({ isOpen, isHidden, position, onClose, onStartPick }) {
     setDescription('')
     setImageFile(null)
     setImagePreview(null)
+    setErrors({})
+    setSubmitError('')
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleClose = () => {
+    if (submitting) return // 등록 중에는 닫지 못하게
     resetForm()
     onClose()
   }
@@ -52,43 +66,55 @@ function RegisterModal({ isOpen, isHidden, position, onClose, onStartPick }) {
 
     setImageFile(file)
     setImagePreview(URL.createObjectURL(file))
+    setErrors((prev) => ({ ...prev, image: undefined }))
+  }
+
+  // 필수 항목 검사: 통과하면 true
+  const validate = () => {
+    const newErrors = {}
+    if (!imageFile) newErrors.image = '사진을 등록해주세요.'
+    if (!title.trim()) newErrors.title = '제목을 입력해주세요.'
+    if (!category) newErrors.category = '카테고리를 선택해주세요.'
+    if (!position) newErrors.position = '발견 위치를 지도에서 지정해주세요.'
+
+    setErrors(newErrors)
+    return Object.keys(newErrors).length === 0
   }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (submitting) return // 중복 클릭 방지
+    if (!validate()) return
 
-    if (!position) {
-      alert('발견 위치를 지도에서 지정해주세요.')
-      return
-    }
+    setSubmitting(true)
+    setSubmitError('')
 
-    setUploading(true)
     try {
-      let imageUrl = null
-      if (imageFile) {
-        imageUrl = await uploadItemImage(imageFile)
-      }
+      const imageUrl = await uploadItemImage(imageFile)
 
-      console.log('제출된 값:', {
-        title,
+      await createItem({
+        title: title.trim(),
         category,
-        description,
+        description: description.trim() || null,
         lat: position.lat,
         lng: position.lng,
-        imageUrl,
+        image_url: imageUrl,
+        found_at: new Date().toISOString(),
       })
-      // 실제 DB insert는 다음주 수요일(10/15)에 연결 예정
+
+      resetForm()
+      onCreated()
     } catch (err) {
-      console.error('이미지 업로드 실패:', err)
-      alert('이미지 업로드에 실패했어요. 다시 시도해주세요.')
+      console.error('등록 실패:', err)
+      setSubmitError('등록에 실패했어요. 잠시 후 다시 시도해주세요.')
     } finally {
-      setUploading(false)
+      setSubmitting(false)
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 my-4">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-lg font-bold">분실물 등록</h2>
           <button
@@ -100,7 +126,7 @@ function RegisterModal({ isOpen, isHidden, position, onClose, onStartPick }) {
         </div>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* 사진 업로드 영역 */}
+          {/* 사진 */}
           <div>
             <input
               ref={fileInputRef}
@@ -111,7 +137,9 @@ function RegisterModal({ isOpen, isHidden, position, onClose, onStartPick }) {
             />
             <div
               onClick={() => fileInputRef.current.click()}
-              className="w-24 h-24 bg-gray-100 border-2 border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 cursor-pointer overflow-hidden"
+              className={`w-24 h-24 bg-gray-100 border-2 border-dashed rounded flex items-center justify-center text-gray-400 cursor-pointer overflow-hidden ${
+                errors.image ? 'border-red-400' : 'border-gray-300'
+              }`}
             >
               {imagePreview ? (
                 <img
@@ -123,6 +151,9 @@ function RegisterModal({ isOpen, isHidden, position, onClose, onStartPick }) {
                 '+'
               )}
             </div>
+            {errors.image && (
+              <p className="text-red-500 text-xs mt-1">{errors.image}</p>
+            )}
           </div>
 
           {/* 제목 */}
@@ -133,9 +164,13 @@ function RegisterModal({ isOpen, isHidden, position, onClose, onStartPick }) {
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="예: 검정 우산"
-              className="w-full border rounded px-3 py-2"
-              required
+              className={`w-full border rounded px-3 py-2 ${
+                errors.title ? 'border-red-400' : ''
+              }`}
             />
+            {errors.title && (
+              <p className="text-red-500 text-xs mt-1">{errors.title}</p>
+            )}
           </div>
 
           {/* 카테고리 */}
@@ -144,8 +179,9 @@ function RegisterModal({ isOpen, isHidden, position, onClose, onStartPick }) {
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full border rounded px-3 py-2"
-              required
+              className={`w-full border rounded px-3 py-2 ${
+                errors.category ? 'border-red-400' : ''
+              }`}
             >
               <option value="">선택하세요</option>
               {CATEGORIES.map((cat) => (
@@ -154,6 +190,9 @@ function RegisterModal({ isOpen, isHidden, position, onClose, onStartPick }) {
                 </option>
               ))}
             </select>
+            {errors.category && (
+              <p className="text-red-500 text-xs mt-1">{errors.category}</p>
+            )}
           </div>
 
           {/* 상세 설명 */}
@@ -174,12 +213,14 @@ function RegisterModal({ isOpen, isHidden, position, onClose, onStartPick }) {
               className={`w-full border rounded px-3 py-2 text-sm ${
                 position
                   ? 'bg-green-50 border-green-300 text-gray-800'
+                  : errors.position
+                  ? 'bg-red-50 border-red-400 text-red-500'
                   : 'bg-gray-50 text-gray-400'
               }`}
             >
               {position
                 ? `위도 ${position.lat.toFixed(6)}, 경도 ${position.lng.toFixed(6)}`
-                : '아직 위치가 지정되지 않았어요'}
+                : errors.position || '아직 위치가 지정되지 않았어요'}
             </div>
             <button
               type="button"
@@ -190,12 +231,20 @@ function RegisterModal({ isOpen, isHidden, position, onClose, onStartPick }) {
             </button>
           </div>
 
+          {/* 서버 오류 메시지 */}
+          {submitError && (
+            <p className="text-red-500 text-sm text-center">{submitError}</p>
+          )}
+
           <button
             type="submit"
-            disabled={uploading}
-            className="bg-blue-500 text-white rounded py-2 font-medium hover:bg-blue-600 disabled:bg-blue-300"
+            disabled={submitting}
+            className="bg-blue-500 text-white rounded py-2 font-medium hover:bg-blue-600 disabled:bg-blue-300 flex items-center justify-center gap-2"
           >
-            {uploading ? '업로드 중...' : '등록하기'}
+            {submitting && (
+              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            )}
+            {submitting ? '등록 중...' : '등록하기'}
           </button>
         </form>
       </div>

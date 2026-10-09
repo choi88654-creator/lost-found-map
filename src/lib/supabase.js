@@ -1,20 +1,6 @@
-import { supabase } from './supabase'
+import { createClient } from '@supabase/supabase-js'
 
-export async function uploadItemImage(file) {
-  const fileExt = file.name.split('.').pop()
-  const fileName = `${crypto.randomUUID()}.${fileExt}`
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-  const { error: uploadError } = await supabase.storage
-    .from('item-images')
-    .upload(fileName, file)
-
-  if (uploadError) {
-    throw uploadError
-  }
-
-  const { data } = supabase.storage
-    .from('item-images')
-    .getPublicUrl(fileName)
-
-  return data.publicUrl
-}
+export const supabase = createClient(supabaseUrl, supabaseKey)
