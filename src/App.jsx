@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import KakaoMap from './components/KakaoMap'
 import RegisterModal from './components/RegisterModal'
+import ItemDetailModal from './components/ItemDetailModal'
 import { fetchItems } from './lib/itemsApi'
 
 function App() {
@@ -8,19 +9,17 @@ function App() {
   const [isPicking, setIsPicking] = useState(false)
   const [position, setPosition] = useState(null)
   const [items, setItems] = useState([])
+  const [selectedItem, setSelectedItem] = useState(null)
 
-  // DB에서 목록 불러오기
   const loadItems = useCallback(async () => {
     try {
       const data = await fetchItems()
-      console.log('불러온 데이터:', data)
       setItems(data)
     } catch (err) {
       console.error('데이터 불러오기 실패:', err)
     }
   }, [])
 
-  // 처음 접속했을 때 한 번 불러오기
   useEffect(() => {
     loadItems()
   }, [loadItems])
@@ -40,7 +39,6 @@ function App() {
     setPosition(null)
   }
 
-  // 등록 성공 시: 모달 닫기 + 목록 다시 불러오기
   const handleCreated = async () => {
     handleClose()
     await loadItems()
@@ -64,6 +62,7 @@ function App() {
           isPicking={isPicking}
           pickedPosition={position}
           onPick={handlePick}
+          onItemClick={setSelectedItem}
         />
 
         {isPicking && (
@@ -86,6 +85,11 @@ function App() {
         onClose={handleClose}
         onStartPick={handleStartPick}
         onCreated={handleCreated}
+      />
+
+      <ItemDetailModal
+        item={selectedItem}
+        onClose={() => setSelectedItem(null)}
       />
     </div>
   )

@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 
-function KakaoMap({ items, isPicking, pickedPosition, onPick }) {
+function KakaoMap({ items, isPicking, pickedPosition, onPick, onItemClick }) {
   const mapRef = useRef(null)
   const [map, setMap] = useState(null)
 
   const isPickingRef = useRef(isPicking)
   const onPickRef = useRef(onPick)
+  const onItemClickRef = useRef(onItemClick)
   const pickedMarkerRef = useRef(null)
   const itemMarkersRef = useRef([])
 
@@ -16,6 +17,10 @@ function KakaoMap({ items, isPicking, pickedPosition, onPick }) {
   useEffect(() => {
     onPickRef.current = onPick
   }, [onPick])
+
+  useEffect(() => {
+    onItemClickRef.current = onItemClick
+  }, [onItemClick])
 
   // 1. 지도 초기화 + 클릭 이벤트
   useEffect(() => {
@@ -40,11 +45,10 @@ function KakaoMap({ items, isPicking, pickedPosition, onPick }) {
     })
   }, [])
 
-  // 2. items가 바뀔 때마다 마커 다시 그리기
+  // 2. items가 바뀔 때마다 마커 다시 그리기 + 마커 클릭 이벤트
   useEffect(() => {
     if (!map) return
 
-    // 기존 마커 전부 제거 (안 지우면 등록할 때마다 중복으로 쌓임)
     itemMarkersRef.current.forEach((marker) => marker.setMap(null))
     itemMarkersRef.current = []
 
@@ -52,7 +56,15 @@ function KakaoMap({ items, isPicking, pickedPosition, onPick }) {
       const marker = new window.kakao.maps.Marker({
         position: new window.kakao.maps.LatLng(item.lat, item.lng),
         map: map,
+        title: item.title,
       })
+
+      window.kakao.maps.event.addListener(marker, 'click', () => {
+        // 위치 선택 중에는 상세 모달을 띄우지 않음
+        if (isPickingRef.current) return
+        onItemClickRef.current(item)
+      })
+
       itemMarkersRef.current.push(marker)
     })
   }, [map, items])
