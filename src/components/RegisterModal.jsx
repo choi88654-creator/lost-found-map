@@ -24,6 +24,7 @@ function RegisterModal({
 }) {
   const [title, setTitle] = useState('')
   const [category, setCategory] = useState('')
+  const [locationName, setLocationName] = useState('')
   const [description, setDescription] = useState('')
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
@@ -37,6 +38,7 @@ function RegisterModal({
   const resetForm = () => {
     setTitle('')
     setCategory('')
+    setLocationName('')
     setDescription('')
     setImageFile(null)
     setImagePreview(null)
@@ -46,7 +48,7 @@ function RegisterModal({
   }
 
   const handleClose = () => {
-    if (submitting) return // 등록 중에는 닫지 못하게
+    if (submitting) return
     resetForm()
     onClose()
   }
@@ -69,7 +71,6 @@ function RegisterModal({
     setErrors((prev) => ({ ...prev, image: undefined }))
   }
 
-  // 필수 항목 검사: 통과하면 true
   const validate = () => {
     const newErrors = {}
     if (!imageFile) newErrors.image = '사진을 등록해주세요.'
@@ -83,7 +84,7 @@ function RegisterModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (submitting) return // 중복 클릭 방지
+    if (submitting) return
     if (!validate()) return
 
     setSubmitting(true)
@@ -95,6 +96,7 @@ function RegisterModal({
       await createItem({
         title: title.trim(),
         category,
+        location_name: locationName.trim() || null,
         description: description.trim() || null,
         lat: position.lat,
         lng: position.lng,
@@ -195,6 +197,20 @@ function RegisterModal({
             )}
           </div>
 
+          {/* 보관 장소 */}
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              보관 장소 <span className="text-gray-400 font-normal">(선택)</span>
+            </label>
+            <input
+              type="text"
+              value={locationName}
+              onChange={(e) => setLocationName(e.target.value)}
+              placeholder="예: 학생회관 1층 안내데스크"
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+
           {/* 상세 설명 */}
           <div>
             <label className="block text-sm font-medium mb-1">상세 설명</label>
@@ -231,7 +247,6 @@ function RegisterModal({
             </button>
           </div>
 
-          {/* 서버 오류 메시지 */}
           {submitError && (
             <p className="text-red-500 text-sm text-center">{submitError}</p>
           )}
