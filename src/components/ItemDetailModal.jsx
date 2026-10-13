@@ -1,3 +1,5 @@
+import { useState } from 'react'
+
 const STATUS_STYLE = {
   보관중: 'bg-green-100 text-green-700',
   수령완료: 'bg-gray-200 text-gray-600',
@@ -14,10 +16,30 @@ function formatDate(value) {
   })
 }
 
-function ItemDetailModal({ item, onClose }) {
+function ItemDetailModal({ item, userId, onClose, onStatusChange }) {
+  const [changing, setChanging] = useState(false)
+  const [error, setError] = useState('')
+
   if (!item) return null
 
-  const statusClass = STATUS_STYLE[item.status] || STATUS_STYLE['보관중']
+  const currentStatus = item.status || '보관중'
+  const statusClass = STATUS_STYLE[currentStatus] || STATUS_STYLE['보관중']
+  const isOwner = userId && item.owner_id === userId
+  const nextStatus = currentStatus === '보관중' ? '수령완료' : '보관중'
+
+  const handleToggle = async () => {
+    if (changing) return
+    setChanging(true)
+    setError('')
+    try {
+      await onStatusChange(item, nextStatus)
+    } catch (err) {
+      console.error('상태 변경 실패:', err)
+      setError('상태 변경에 실패했어요. 잠시 후 다시 시도해주세요.')
+    } finally {
+      setChanging(false)
+    }
+  }
 
   return (
     <div
@@ -46,7 +68,7 @@ function ItemDetailModal({ item, onClose }) {
               <span
                 className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2 ${statusClass}`}
               >
-                {item.status || '보관중'}
+                {currentStatus}
               </span>
               <h2 className="text-lg font-bold">{item.title}</h2>
             </div>
@@ -78,6 +100,26 @@ function ItemDetailModal({ item, onClose }) {
               </div>
             )}
           </dl>
+
+          {/* 작성자 본인에게만 보이는 상태 변경 버튼 */}
+          {isOwner && (
+            <div className="mt-5">
+              <button
+                onClick={handleToggle}
+                disabled={changing}
+                className="w-full border border-blue-500 text-blue-500 rounded py-2 text-sm font-medium hover:bg-blue-50 disabled:opacity-50"
+              >
+                {changing
+                  ? '변경 중...'
+                  : nextStatus === '수령완료'
+                  ? '✅ 수령완료로 변경'
+                  : '↩️ 보관중으로 되돌리기'}
+              </button>
+              {error && (
+                <p className="text-red-500 text-xs mt-2 text-center">{error}</p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

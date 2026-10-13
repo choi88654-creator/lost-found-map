@@ -1,8 +1,10 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import KakaoMap from './components/KakaoMap'
 import RegisterModal from './components/RegisterModal'
 import ItemDetailModal from './components/ItemDetailModal'
-import { fetchItems } from './lib/itemsApi'
+import FilterBar from './components/FilterBar'
+import { fetchItems, updateItemStatus } from './lib/itemsApi'
+import { ensureSession } from './lib/auth'
 
 function App() {
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -10,6 +12,9 @@ function App() {
   const [position, setPosition] = useState(null)
   const [items, setItems] = useState([])
   const [selectedItem, setSelectedItem] = useState(null)
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [userId, setUserId] = useState(null)
 
   const loadItems = useCallback(async () => {
     try {
@@ -23,6 +28,30 @@ function App() {
   useEffect(() => {
     loadItems()
   }, [loadItems])
+
+  // 접속 시 익명 로그인(또는 기존 세션 복원)해서 내 ID 확보
+  useEffect(() => {
+    ensureSession()
+      .then((user) => setUserId(user.id))
+      .catch((err) => console.error('익명 로그인 실패:', err))
+  }, [])
+
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      const itemStatus = item.status || '보관중'
+      const categoryOk =
+        categoryFilter === 'all' || item.category === categoryFilter
+      const statusOk = statusFilter === 'all' || itemStatus === statusFilter
+      return categoryOk && statusOk
+    })
+  }, [items, categoryFilter, statusFilter])
+
+  const isFiltered = categoryFilter !== 'all' || statusFilter !== 'all'
+
+  const resetFilters = () => {
+    setCategoryFilter('all')
+    setStatusFilter('all')
+  }
 
   const handleStartPick = () => setIsPicking(true)
 
@@ -44,6 +73,13 @@ function App() {
     await loadItems()
   }
 
+  // 상태 변경: 성공하면 목록과 열려 있는 상세 모달을 모두 갱신
+  const handleStatusChange = async (item, newStatus) => {
+    const updated = await updateItemStatus(item.id, newStatus)
+    setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)))
+    setSelectedItem(updated)
+  }
+
   return (
     <div className="h-screen w-screen flex flex-col">
       <header className="h-14 flex items-center justify-between px-4 bg-white shadow z-10">
@@ -58,12 +94,30 @@ function App() {
 
       <main className="flex-1 relative">
         <KakaoMap
-          items={items}
+          items={filteredItems}
           isPicking={isPicking}
           pickedPosition={position}
           onPick={handlePick}
           onItemClick={setSelectedItem}
         />
+
+        {!isPicking && (
+          <FilterBar
+            category={categoryFilter}
+            status={statusFilter}
+            onCategoryChange={setCategoryFilter}
+            onStatusChange={setStatusFilter}
+          />
+        )}
+
+        {!isPicking && isFiltered && filteredItems.length === 0 && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-white shadow-lg rounded-full px-4 py-2 flex items-center gap-3 text-sm">
+            <span>조건에 맞는 분실물이 없어요</span>
+            <button onClick={resetFilters} className="text-blue-500 underline">
+              필터 초기화
+            </button>
+          </div>
+        )}
 
         {isPicking && (
           <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-white shadow-lg rounded-full px-4 py-2 flex items-center gap-3 text-sm">
@@ -89,7 +143,9 @@ function App() {
 
       <ItemDetailModal
         item={selectedItem}
+        userId={userId}
         onClose={() => setSelectedItem(null)}
+        onStatusChange={handleStatusChange}
       />
     </div>
   )
