@@ -134,3 +134,40 @@
 
 \- \*\*배운 점\*\*: 외부 서비스 콘솔은 UI가 자주 바뀐다. 이전에 해결한 경로를 기록해두면 같은 문제를 반복해서 헤매지 않는다
 
+
+
+## 9. supabase.js에 URL을 따옴표 없이 직접 입력하여 파싱 에러
+
+
+
+- **일시**: 2026-10-09
+- **증상**: `[PARSE_ERROR] Expected a semicolon or an implicit semicolon after a statement` (`src/lib/supabase.js:3`)
+- **원인**: 3번째 줄에 `const supabaseUrl = https://...supabase.co/rest/v1/`처럼 URL이 문자열 따옴표 없이 코드에 직접 들어가 있었음. 끝의 `/rest/v1/`도 3번 항목과 같은 오류
+- **해결**: `supabase.js`는 `import.meta.env.VITE_SUPABASE_URL`로 환경변수를 읽도록 되돌리고, URL은 `.env`에만 `https://xxxx.supabase.co` 형태로 작성
+- **배운 점**: 키와 URL은 코드에 직접 쓰지 않고 환경변수로 분리한다. 에러 화면의 파일명과 줄 번호가 원인을 정확히 알려준다
+
+
+
+## 10. 상태 끌어올리기로 구조 변경 (설계 결정 기록)
+
+
+
+- **일시**: 2026-10-09
+- **상황**: 등록 후 지도에 마커가 즉시 반영되지 않음. 마커 데이터를 `KakaoMap`이 직접 불러와서 등록 완료를 알 방법이 없었음
+- **해결**: DB 조회(`items` 상태)를 `App.jsx`로 올리고, 등록 성공 시 `loadItems()`를 다시 호출. `KakaoMap`은 받은 `items`대로 마커를 그리기만 함. 마커를 다시 그릴 때는 기존 마커를 먼저 제거해 중복 방지
+- **배운 점**: 여러 컴포넌트가 같은 데이터에 반응해야 하면 상태를 공통 부모에 둔다
+
+10/11 - 상세 모달 커밋, 등록 폼에 보관 장소 입력 추가
+        TROUBLESHOOTING 8~10번 기록, 배포 사이트 동작 확인
+
+10/12 - 카테고리/상태 필터 구현 (filteredItems + useMemo, FilterBar 컴포넌트)
+        CATEGORIES를 constants.js로 분리
+
+
+
+## 11. 수령완료 변경 권한 설계
+
+- 상황: 누구나 글을 등록하는 구조에서 update를 열면 남의 글 상태 조작 가능
+- 해결: Supabase 익명 로그인 + items.owner_id(default auth.uid()) + RLS(owner_id = auth.uid())
+- 주의: RLS가 막은 update는 에러 없이 0행을 반환하므로 클라이언트에서 직접 검사
+- 한계: 브라우저 세션 기반이라 기기 변경 시 소유권 상실

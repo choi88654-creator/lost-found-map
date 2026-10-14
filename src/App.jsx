@@ -81,12 +81,12 @@ function App() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col">
+    <div className="h-dvh w-full flex flex-col overflow-hidden">
       <header className="h-14 flex items-center justify-between px-4 bg-white shadow z-10">
         <h1 className="font-bold">분실물 지도</h1>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="bg-blue-500 text-white px-4 py-1.5 rounded text-sm font-medium hover:bg-blue-600"
+          className="bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-600"
         >
           + 등록
         </button>
@@ -111,7 +111,7 @@ function App() {
         )}
 
         {!isPicking && isFiltered && filteredItems.length === 0 && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 bg-white shadow-lg rounded-full px-4 py-2 flex items-center gap-3 text-sm">
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 max-w-[90%] bg-white shadow-lg rounded-full px-4 py-2 flex items-center gap-3 text-sm">
             <span>조건에 맞는 분실물이 없어요</span>
             <button onClick={resetFilters} className="text-blue-500 underline">
               필터 초기화
@@ -120,7 +120,7 @@ function App() {
         )}
 
         {isPicking && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-white shadow-lg rounded-full px-4 py-2 flex items-center gap-3 text-sm">
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 max-w-[90%] bg-white shadow-lg rounded-full px-4 py-2 flex items-center gap-3 text-sm">
             <span className="font-medium">📍 발견 위치를 지도에서 클릭하세요</span>
             <button
               onClick={handleCancelPick}

@@ -43,13 +43,14 @@ function ItemDetailModal({ item, userId, onClose, onStatusChange }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 overflow-y-auto"
-      onClick={onClose}
+       className="fixed inset-0 bg-black/50 z-50 overflow-y-auto"
+       onClick={onClose}
     >
-      <div
-        className="bg-white rounded-lg w-full max-w-md mx-4 my-4 overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div
+          className="bg-white rounded-lg w-full max-w-md overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
         {item.image_url ? (
           <img
             src={item.image_url}
@@ -123,6 +124,7 @@ function ItemDetailModal({ item, userId, onClose, onStatusChange }) {
         </div>
       </div>
     </div>
+  </div>
   )
 }
 
