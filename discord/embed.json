@@ -1,0 +1,22 @@
+{
+  "username": "분실물 알림봇",
+  "embeds": [
+    {
+      "title": "🔎 새 분실물: 검정 우산",
+      "url": "https://lost-found-map.vercel.app",
+      "description": "학생회관 앞 벤치에서 발견했어요.",
+      "color": 3447003,
+      "fields": [
+        { "name": "카테고리", "value": "우산", "inline": true },
+        { "name": "보관 장소", "value": "", "inline": true },
+        {
+          "name": "위치",
+          "value": "[카카오맵에서 보기](https://map.kakao.com/link/map/발견위치,37.5665,126.9780)"
+        }
+      ],
+      "image": { "url": "" },
+      "footer": { "text": "분실물 지도" },
+      "timestamp": "2026-10-15T08:00:00.000Z"
+    }
+  ]
+}
