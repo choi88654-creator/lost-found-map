@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { uploadItemImage } from '../lib/uploadImage'
 import { createItem } from '../lib/itemsApi'
+import { notifyDiscord } from '../lib/notify'
 import { CATEGORIES } from '../constants'
 
 function RegisterModal({
@@ -82,7 +83,7 @@ function RegisterModal({
     try {
       const imageUrl = await uploadItemImage(imageFile)
 
-      await createItem({
+      const created = await createItem({
         title: title.trim(),
         category,
         location_name: locationName.trim() || null,
@@ -92,6 +93,8 @@ function RegisterModal({
         image_url: imageUrl,
         found_at: new Date().toISOString(),
       })
+
+      notifyDiscord(created.id) // await 없이: 알림이 느려도 등록 UI는 바로 닫힘
 
       resetForm()
       onCreated()
@@ -104,157 +107,158 @@ function RegisterModal({
   }
 
   return (
-  <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto">
-    <div className="flex min-h-full items-center justify-center p-4">
-      <div className="bg-white rounded-lg p-5 sm:p-6 w-full max-w-md">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold">분실물 등록</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-500 hover:text-gray-800"
-          >
-            ✕
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* 사진 */}
-          <div>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-              className="hidden"
-            />
-            <div
-              onClick={() => fileInputRef.current.click()}
-              className={`w-24 h-24 bg-gray-100 border-2 border-dashed rounded flex items-center justify-center text-gray-400 cursor-pointer overflow-hidden ${
-                errors.image ? 'border-red-400' : 'border-gray-300'
-              }`}
-            >
-              {imagePreview ? (
-                <img
-                  src={imagePreview}
-                  alt="미리보기"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                '+'
-              )}
-            </div>
-            {errors.image && (
-              <p className="text-red-500 text-xs mt-1">{errors.image}</p>
-            )}
-          </div>
-
-          {/* 제목 */}
-          <div>
-            <label className="block text-sm font-medium mb-1">제목</label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="예: 검정 우산"
-              className={`w-full border rounded px-3 py-2 ${
-                errors.title ? 'border-red-400' : ''
-              }`}
-            />
-            {errors.title && (
-              <p className="text-red-500 text-xs mt-1">{errors.title}</p>
-            )}
-          </div>
-
-          {/* 카테고리 */}
-          <div>
-            <label className="block text-sm font-medium mb-1">카테고리</label>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className={`w-full border rounded px-3 py-2 ${
-                errors.category ? 'border-red-400' : ''
-              }`}
-            >
-              <option value="">선택하세요</option>
-              {CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-            {errors.category && (
-              <p className="text-red-500 text-xs mt-1">{errors.category}</p>
-            )}
-          </div>
-
-          {/* 보관 장소 */}
-          <div>
-            <label className="block text-sm font-medium mb-1">
-              보관 장소 <span className="text-gray-400 font-normal">(선택)</span>
-            </label>
-            <input
-              type="text"
-              value={locationName}
-              onChange={(e) => setLocationName(e.target.value)}
-              placeholder="예: 학생회관 1층 안내데스크"
-              className="w-full border rounded px-3 py-2"
-            />
-          </div>
-
-          {/* 상세 설명 */}
-          <div>
-            <label className="block text-sm font-medium mb-1">상세 설명</label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="물건의 특징을 간단히 적어주세요"
-              className="w-full border rounded px-3 py-2 h-20 resize-none"
-            />
-          </div>
-
-          {/* 발견 위치 */}
-          <div>
-            <label className="block text-sm font-medium mb-1">발견 위치</label>
-            <div
-              className={`w-full border rounded px-3 py-2 text-sm ${
-                position
-                  ? 'bg-green-50 border-green-300 text-gray-800'
-                  : errors.position
-                  ? 'bg-red-50 border-red-400 text-red-500'
-                  : 'bg-gray-50 text-gray-400'
-              }`}
-            >
-              {position
-                ? `위도 ${position.lat.toFixed(6)}, 경도 ${position.lng.toFixed(6)}`
-                : errors.position || '아직 위치가 지정되지 않았어요'}
-            </div>
+    <div className="fixed inset-0 bg-black/50 z-50 overflow-y-auto">
+      <div className="flex min-h-full items-center justify-center p-4">
+        <div className="bg-white rounded-lg p-5 sm:p-6 w-full max-w-md">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-lg font-bold">분실물 등록</h2>
             <button
-              type="button"
-              onClick={onStartPick}
-              className="mt-2 w-full border border-blue-500 text-blue-500 rounded py-2 text-sm font-medium hover:bg-blue-50"
+              onClick={handleClose}
+              className="text-gray-500 hover:text-gray-800"
             >
-              {position ? '📍 위치 다시 선택' : '📍 지도에서 위치 선택'}
+              ✕
             </button>
           </div>
 
-          {submitError && (
-            <p className="text-red-500 text-sm text-center">{submitError}</p>
-          )}
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+            {/* 사진 */}
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+              <div
+                onClick={() => fileInputRef.current.click()}
+                className={`w-24 h-24 bg-gray-100 border-2 border-dashed rounded flex items-center justify-center text-gray-400 cursor-pointer overflow-hidden ${
+                  errors.image ? 'border-red-400' : 'border-gray-300'
+                }`}
+              >
+                {imagePreview ? (
+                  <img
+                    src={imagePreview}
+                    alt="미리보기"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  '+'
+                )}
+              </div>
+              {errors.image && (
+                <p className="text-red-500 text-xs mt-1">{errors.image}</p>
+              )}
+            </div>
 
-          <button
-            type="submit"
-            disabled={submitting}
-            className="bg-blue-500 text-white rounded py-2 font-medium hover:bg-blue-600 disabled:bg-blue-300 flex items-center justify-center gap-2"
-          >
-            {submitting && (
-              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            {/* 제목 */}
+            <div>
+              <label className="block text-sm font-medium mb-1">제목</label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="예: 검정 우산"
+                className={`w-full border rounded px-3 py-2 ${
+                  errors.title ? 'border-red-400' : ''
+                }`}
+              />
+              {errors.title && (
+                <p className="text-red-500 text-xs mt-1">{errors.title}</p>
+              )}
+            </div>
+
+            {/* 카테고리 */}
+            <div>
+              <label className="block text-sm font-medium mb-1">카테고리</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className={`w-full border rounded px-3 py-2 ${
+                  errors.category ? 'border-red-400' : ''
+                }`}
+              >
+                <option value="">선택하세요</option>
+                {CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+              {errors.category && (
+                <p className="text-red-500 text-xs mt-1">{errors.category}</p>
+              )}
+            </div>
+
+            {/* 보관 장소 */}
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                보관 장소{' '}
+                <span className="text-gray-400 font-normal">(선택)</span>
+              </label>
+              <input
+                type="text"
+                value={locationName}
+                onChange={(e) => setLocationName(e.target.value)}
+                placeholder="예: 학생회관 1층 안내데스크"
+                className="w-full border rounded px-3 py-2"
+              />
+            </div>
+
+            {/* 상세 설명 */}
+            <div>
+              <label className="block text-sm font-medium mb-1">상세 설명</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="물건의 특징을 간단히 적어주세요"
+                className="w-full border rounded px-3 py-2 h-20 resize-none"
+              />
+            </div>
+
+            {/* 발견 위치 */}
+            <div>
+              <label className="block text-sm font-medium mb-1">발견 위치</label>
+              <div
+                className={`w-full border rounded px-3 py-2 text-sm ${
+                  position
+                    ? 'bg-green-50 border-green-300 text-gray-800'
+                    : errors.position
+                    ? 'bg-red-50 border-red-400 text-red-500'
+                    : 'bg-gray-50 text-gray-400'
+                }`}
+              >
+                {position
+                  ? `위도 ${position.lat.toFixed(6)}, 경도 ${position.lng.toFixed(6)}`
+                  : errors.position || '아직 위치가 지정되지 않았어요'}
+              </div>
+              <button
+                type="button"
+                onClick={onStartPick}
+                className="mt-2 w-full border border-blue-500 text-blue-500 rounded py-2 text-sm font-medium hover:bg-blue-50"
+              >
+                {position ? '📍 위치 다시 선택' : '📍 지도에서 위치 선택'}
+              </button>
+            </div>
+
+            {submitError && (
+              <p className="text-red-500 text-sm text-center">{submitError}</p>
             )}
-            {submitting ? '등록 중...' : '등록하기'}
-          </button>
-        </form>
+
+            <button
+              type="submit"
+              disabled={submitting}
+              className="bg-blue-500 text-white rounded py-2 font-medium hover:bg-blue-600 disabled:bg-blue-300 flex items-center justify-center gap-2"
+            >
+              {submitting && (
+                <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              )}
+              {submitting ? '등록 중...' : '등록하기'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
-  </div>
   )
 }
 
