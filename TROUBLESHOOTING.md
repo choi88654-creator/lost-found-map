@@ -190,3 +190,12 @@
 - 상황: 클라이언트(fetch)에서 웹훅을 호출하면 웹훅 URL이 배포된 JS에 노출됨
 - 위험: URL을 아는 누구나 채널에 임의 메시지 전송 가능
 - 결정: 서버 쪽(Supabase Edge Function)에서 호출하고, URL은 서버 환경변수(secrets)로만 보관
+
+
+
+## 14. 알림 중복/위조 방지 설계
+
+- 상황: Edge Function 주소가 공개라서, 프론트가 알림 내용을 보내게 하면 누구나 가짜 알림 전송 가능
+- 해결: 프론트는 itemId만 전송. 함수가 DB에서 글을 읽어 카드를 만들고, `notified_at is null`인 5분 이내 글만 UPDATE ... RETURNING으로 선점해 중복 전송 방지. Discord 전송 실패 시 선점 롤백
+- 추가: allowed_mentions로 @everyone 차단, verify_answer는 조회 컬럼에서 제외
+- 한계: 5분 안에는 같은 글에 대해 누구나 호출 가능(단, 1회만 전송됨)
