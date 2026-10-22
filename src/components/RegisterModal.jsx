@@ -10,6 +10,7 @@ function RegisterModal({
   position,
   onClose,
   onStartPick,
+  onUseCurrentLocation,
   onCreated,
 }) {
   const [title, setTitle] = useState('')
@@ -239,6 +240,16 @@ function RegisterModal({
               >
                 {position ? '📍 위치 다시 선택' : '📍 지도에서 위치 선택'}
               </button>
+              <button
+                type="button"
+                onClick={onUseCurrentLocation}
+                className="mt-2 w-full border border-gray-300 text-gray-700 rounded py-2 text-sm font-medium hover:bg-gray-50"
+              >
+                🎯 지금 내 위치로 지정
+              </button>
+              <p className="text-xs text-gray-400 mt-1">
+                물건을 발견한 자리에서 등록할 때만 사용하세요.
+              </p>
             </div>
 
             {submitError && (

@@ -3,6 +3,7 @@ import KakaoMap from './components/KakaoMap'
 import RegisterModal from './components/RegisterModal'
 import ItemDetailModal from './components/ItemDetailModal'
 import FilterBar from './components/FilterBar'
+import PlaceSearch from './components/PlaceSearch'
 import { fetchItems, updateItemStatus } from './lib/itemsApi'
 import { ensureSession } from './lib/auth'
 
@@ -15,6 +16,7 @@ function App() {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [userId, setUserId] = useState(null)
+  const [focusTarget, setFocusTarget] = useState(null)
 
   const loadItems = useCallback(async () => {
     try {
@@ -29,7 +31,6 @@ function App() {
     loadItems()
   }, [loadItems])
 
-  // 접속 시 익명 로그인(또는 기존 세션 복원)해서 내 ID 확보
   useEffect(() => {
     ensureSession()
       .then((user) => setUserId(user.id))
@@ -62,6 +63,37 @@ function App() {
 
   const handleCancelPick = () => setIsPicking(false)
 
+  // 검색 결과 선택: 지도만 이동 (위치 확정은 지도 클릭으로)
+  const handleSearchSelect = ({ lat, lng }) => {
+    setFocusTarget({ lat, lng })
+  }
+
+  // 현재 위치로 바로 지정
+  const handleUseCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      alert('이 브라우저는 위치 정보를 지원하지 않아요.')
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords
+        if (accuracy > 100) {
+          const ok = window.confirm(
+            `위치 정확도가 낮아요 (오차 약 ${Math.round(accuracy)}m). 그래도 사용할까요?`
+          )
+          if (!ok) return
+        }
+        setPosition({ lat: latitude, lng: longitude })
+        setFocusTarget({ lat: latitude, lng: longitude })
+      },
+      () =>
+        alert(
+          '현재 위치를 가져오지 못했어요. 위치 권한을 확인하거나 지도에서 직접 선택해주세요.'
+        ),
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
+
   const handleClose = () => {
     setIsModalOpen(false)
     setIsPicking(false)
@@ -73,7 +105,6 @@ function App() {
     await loadItems()
   }
 
-  // 상태 변경: 성공하면 목록과 열려 있는 상세 모달을 모두 갱신
   const handleStatusChange = async (item, newStatus) => {
     const updated = await updateItemStatus(item.id, newStatus)
     setItems((prev) => prev.map((it) => (it.id === updated.id ? updated : it)))
@@ -99,6 +130,7 @@ function App() {
           pickedPosition={position}
           onPick={handlePick}
           onItemClick={setSelectedItem}
+          focusTarget={focusTarget}
         />
 
         {!isPicking && (
@@ -120,14 +152,21 @@ function App() {
         )}
 
         {isPicking && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 max-w-[90%] bg-white shadow-lg rounded-full px-4 py-2 flex items-center gap-3 text-sm">
-            <span className="font-medium">📍 발견 위치를 지도에서 클릭하세요</span>
-            <button
-              onClick={handleCancelPick}
-              className="text-gray-500 hover:text-gray-800 underline"
-            >
-              취소
-            </button>
+          <div className="absolute top-3 left-3 right-3 z-20 flex flex-col items-center gap-2 pointer-events-none">
+            <div className="pointer-events-auto max-w-full bg-white shadow-lg rounded-full px-4 py-2 flex items-center gap-3 text-sm">
+              <span className="font-medium">
+                📍 지도를 눌러 위치를 지정하세요
+              </span>
+              <button
+                onClick={handleCancelPick}
+                className="text-gray-500 hover:text-gray-800 underline"
+              >
+                취소
+              </button>
+            </div>
+            <div className="pointer-events-auto w-full max-w-md">
+              <PlaceSearch onSelect={handleSearchSelect} />
+            </div>
           </div>
         )}
       </main>
@@ -138,6 +177,7 @@ function App() {
         position={position}
         onClose={handleClose}
         onStartPick={handleStartPick}
+        onUseCurrentLocation={handleUseCurrentLocation}
         onCreated={handleCreated}
       />
 

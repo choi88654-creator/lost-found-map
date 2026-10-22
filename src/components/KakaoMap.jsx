@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 
-function KakaoMap({ items, isPicking, pickedPosition, onPick, onItemClick }) {
+function KakaoMap({
+  items,
+  isPicking,
+  pickedPosition,
+  onPick,
+  onItemClick,
+  focusTarget,
+}) {
   const mapRef = useRef(null)
   const [map, setMap] = useState(null)
 
@@ -60,7 +67,6 @@ function KakaoMap({ items, isPicking, pickedPosition, onPick, onItemClick }) {
       })
 
       window.kakao.maps.event.addListener(marker, 'click', () => {
-        // 위치 선택 중에는 상세 모달을 띄우지 않음
         if (isPickingRef.current) return
         onItemClickRef.current(item)
       })
@@ -99,6 +105,15 @@ function KakaoMap({ items, isPicking, pickedPosition, onPick, onItemClick }) {
       image: markerImage,
     })
   }, [map, pickedPosition])
+
+  // 5. 검색 결과나 현재 위치로 지도 이동
+  useEffect(() => {
+    if (!map || !focusTarget) return
+    map.setCenter(
+      new window.kakao.maps.LatLng(focusTarget.lat, focusTarget.lng)
+    )
+    map.setLevel(3)
+  }, [map, focusTarget])
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
 }
