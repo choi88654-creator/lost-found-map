@@ -4,6 +4,7 @@ import RegisterModal from './components/RegisterModal'
 import ItemDetailModal from './components/ItemDetailModal'
 import FilterBar from './components/FilterBar'
 import PlaceSearch from './components/PlaceSearch'
+import ItemList from './components/ItemList'
 import { fetchItems, updateItemStatus } from './lib/itemsApi'
 import { ensureSession } from './lib/auth'
 
@@ -17,6 +18,7 @@ function App() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [userId, setUserId] = useState(null)
   const [focusTarget, setFocusTarget] = useState(null)
+  const [isListOpen, setIsListOpen] = useState(false)
 
   const loadItems = useCallback(async () => {
     try {
@@ -63,12 +65,10 @@ function App() {
 
   const handleCancelPick = () => setIsPicking(false)
 
-  // 검색 결과 선택: 지도만 이동 (위치 확정은 지도 클릭으로)
   const handleSearchSelect = ({ lat, lng }) => {
     setFocusTarget({ lat, lng })
   }
 
-  // 현재 위치로 바로 지정
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
       alert('이 브라우저는 위치 정보를 지원하지 않아요.')
@@ -94,6 +94,12 @@ function App() {
     )
   }
 
+  // 목록에서 항목 선택: 지도를 그 위치로 옮기고 상세 모달 열기
+  const handleListSelect = (item) => {
+    setFocusTarget({ lat: item.lat, lng: item.lng })
+    setSelectedItem(item)
+  }
+
   const handleClose = () => {
     setIsModalOpen(false)
     setIsPicking(false)
@@ -115,12 +121,24 @@ function App() {
     <div className="h-dvh w-full flex flex-col overflow-hidden">
       <header className="h-14 flex items-center justify-between px-4 bg-white shadow z-10">
         <h1 className="font-bold">분실물 지도</h1>
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-600"
-        >
-          + 등록
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsListOpen((open) => !open)}
+            className={`px-3 py-2 rounded text-sm font-medium border ${
+              isListOpen
+                ? 'bg-gray-100 border-gray-400 text-gray-900'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            목록
+          </button>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium hover:bg-blue-600"
+          >
+            + 등록
+          </button>
+        </div>
       </header>
 
       <main className="flex-1 relative">
@@ -142,13 +160,21 @@ function App() {
           />
         )}
 
-        {!isPicking && isFiltered && filteredItems.length === 0 && (
+        {!isPicking && !isListOpen && isFiltered && filteredItems.length === 0 && (
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 max-w-[90%] bg-white shadow-lg rounded-full px-4 py-2 flex items-center gap-3 text-sm">
             <span>조건에 맞는 분실물이 없어요</span>
             <button onClick={resetFilters} className="text-blue-500 underline">
               필터 초기화
             </button>
           </div>
+        )}
+
+        {!isPicking && isListOpen && (
+          <ItemList
+            items={filteredItems}
+            onSelect={handleListSelect}
+            onClose={() => setIsListOpen(false)}
+          />
         )}
 
         {isPicking && (
